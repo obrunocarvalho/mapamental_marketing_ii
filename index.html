@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Unidades II, III e IV | Marketing de Produtos, Preços e Serviços</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05070f;--panel:#090d18;--text:#eef2ff;--muted:#8992aa;
+  --line:rgba(255,255,255,.09);--surface:rgba(255,255,255,.045);
+  --red:#ff6b6b;--teal:#00e5cc;--gold:#ffd93d;--vio:#b77fff;
+  --header:68px;--panel-width:440px
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif}
+button,input{font:inherit}
+button{color:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+#three-bg{position:fixed;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1s;z-index:0}
+#three-bg.ready{opacity:1}
+.ambient{position:fixed;inset:0;z-index:1;pointer-events:none;background:
+  radial-gradient(circle at 15% 20%,rgba(255,107,107,.09),transparent 30%),
+  radial-gradient(circle at 82% 18%,rgba(0,229,204,.08),transparent 28%),
+  radial-gradient(circle at 75% 82%,rgba(183,127,255,.09),transparent 32%)}
+.noise{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.018;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+#app{position:fixed;inset:0;z-index:3;display:flex;flex-direction:column}
+.header{height:var(--header);flex:0 0 auto;display:flex;align-items:center;gap:20px;padding:0 22px;border-bottom:1px solid var(--line);background:rgba(5,7,15,.78);backdrop-filter:blur(20px)}
+.brand{display:flex;align-items:center;gap:11px;min-width:300px}
+.brand-mark{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--red),var(--vio));box-shadow:0 0 26px rgba(183,127,255,.25)}
+.brand-mark svg{width:18px;height:18px}
+.brand h1{font-family:"Syne",sans-serif;font-size:.9rem;line-height:1.15;letter-spacing:.01em}
+.brand p{font-size:.68rem;color:var(--muted);margin-top:3px}
+.filters{display:flex;align-items:center;gap:6px;flex:1;justify-content:center}
+.filter-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 11px;font-size:.68rem;color:var(--muted);cursor:pointer;transition:.2s}
+.filter-btn:hover,.filter-btn.active{color:var(--text);border-color:var(--unit-color,rgba(255,255,255,.28));background:color-mix(in srgb,var(--unit-color,#fff) 12%,transparent)}
+.workspace{position:relative;flex:1;min-height:0}
+#map-wrap{position:absolute;inset:0;overflow:hidden;touch-action:none}
+#mindmap{width:100%;height:100%;display:block}
+#mindmap,#mindmap *{touch-action:none;-webkit-tap-highlight-color:transparent}
+.map-meta{position:absolute;left:20px;top:18px;display:flex;gap:7px;pointer-events:none}
+.meta-chip{border:1px solid var(--line);background:rgba(5,7,15,.65);backdrop-filter:blur(12px);border-radius:8px;padding:6px 9px;font:600 .62rem "JetBrains Mono",monospace;color:var(--muted)}
+.legend{position:absolute;left:20px;bottom:20px;display:grid;gap:6px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(5,7,15,.65);backdrop-filter:blur(14px)}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:.66rem;color:var(--muted)}
+.legend-dot{width:7px;height:7px;border-radius:50%;box-shadow:0 0 9px currentColor}
+.controls{position:absolute;right:20px;bottom:20px;display:flex;flex-direction:column;gap:5px}
+.control-btn{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);background:rgba(5,7,15,.68);backdrop-filter:blur(12px);border-radius:9px;cursor:pointer;color:var(--muted);transition:.2s}
+.control-btn:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.control-btn svg{width:16px;height:16px}
+.hint{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);border:1px solid var(--line);background:rgba(5,7,15,.7);backdrop-filter:blur(12px);border-radius:999px;padding:7px 13px;font-size:.66rem;color:var(--muted);pointer-events:none;animation:hint 5s 2s forwards}
+@keyframes hint{0%,65%{opacity:1}100%{opacity:0;visibility:hidden}}
+#tooltip{position:fixed;z-index:40;pointer-events:none;opacity:0;max-width:230px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(5,7,15,.94);backdrop-filter:blur(14px);font-size:.69rem;line-height:1.4;color:var(--text);transition:opacity .15s}
+#tooltip strong{display:block;color:var(--tip-color,#fff);font-family:"Syne",sans-serif;font-size:.7rem;margin-bottom:2px}
+#panel-overlay{position:fixed;inset:var(--header) 0 0;background:rgba(0,0,0,0);pointer-events:none;z-index:49;transition:.3s}
+#panel{position:fixed;top:var(--header);right:0;bottom:0;width:var(--panel-width);z-index:50;display:flex;flex-direction:column;border-left:1px solid var(--line);background:rgba(7,10,19,.94);backdrop-filter:blur(28px) saturate(1.25);box-shadow:-18px 0 60px rgba(0,0,0,.32);transform:translateX(105%);transition:transform .42s cubic-bezier(.22,1,.36,1)}
+#panel.open{transform:translateX(0)}
+.panel-head{padding:20px 22px 17px;border-bottom:1px solid var(--line);position:relative}
+.panel-handle{display:none;width:38px;height:4px;border-radius:4px;background:rgba(255,255,255,.18);margin:0 auto 14px}
+#panel-close{position:absolute;right:17px;top:17px;width:31px;height:31px;border:1px solid var(--line);background:var(--surface);border-radius:8px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+#panel-close svg{width:15px;height:15px}
+#panel-kicker{font:600 .61rem "JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.12em;color:var(--panel-color);margin-bottom:9px;padding-right:38px}
+#panel-title{font-family:"Syne",sans-serif;font-size:1.28rem;line-height:1.16;padding-right:36px}
+#panel-summary{font-size:.77rem;line-height:1.55;color:var(--muted);margin-top:7px}
+#panel-body{flex:1;overflow:auto;padding:18px 20px 30px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
+.panel-section{margin-bottom:18px}
+.panel-label{font-family:"Syne",sans-serif;font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--panel-color);margin-bottom:8px}
+.quote{border-left:2px solid var(--panel-color);background:var(--surface);border-radius:0 9px 9px 0;padding:11px 13px;font-size:.76rem;line-height:1.55;color:#d8deef}
+.quote cite{display:block;margin-top:6px;color:var(--muted);font-style:normal;font-size:.67rem}
+.fact-list{list-style:none;display:grid;gap:6px}
+.fact-list li{position:relative;padding:8px 10px 8px 22px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.025);border-radius:8px;font-size:.73rem;line-height:1.48;color:#cbd2e4}
+.fact-list li:before{content:"";position:absolute;left:10px;top:14px;width:5px;height:5px;border-radius:50%;background:var(--panel-color);box-shadow:0 0 8px var(--panel-color)}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.study-card{padding:10px;border:1px solid rgba(255,255,255,.06);border-radius:9px;background:var(--surface)}
+.study-card strong{display:block;font-size:.73rem;margin-bottom:3px;color:var(--text)}
+.study-card span{display:block;font-size:.67rem;line-height:1.42;color:var(--muted)}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.metric{padding:10px 6px;border:1px solid color-mix(in srgb,var(--panel-color) 26%,transparent);border-radius:9px;background:color-mix(in srgb,var(--panel-color) 7%,transparent);text-align:center}
+.metric strong{display:block;font:700 1rem "Syne",sans-serif;color:var(--panel-color);margin-bottom:2px}
+.metric span{display:block;font-size:.6rem;line-height:1.3;color:var(--muted)}
+.steps{display:flex;align-items:stretch;gap:4px}
+.step{flex:1;min-width:0;padding:8px 5px;border-radius:7px;background:color-mix(in srgb,var(--panel-color) 9%,transparent);border:1px solid color-mix(in srgb,var(--panel-color) 22%,transparent);font-size:.61rem;line-height:1.3;text-align:center;color:#d7dcee}
+.source-list{display:flex;flex-wrap:wrap;gap:5px}
+.source-tag{border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:500 .56rem "JetBrains Mono",monospace;color:#7f899f;background:rgba(255,255,255,.02)}
+.node{cursor:pointer}
+.node .halo{opacity:.2;transition:opacity .2s}
+.node:hover .halo{opacity:.7}
+.node text{pointer-events:none;user-select:none}
+.node.dimmed,.link.dimmed{opacity:.1}
+.link{fill:none;stroke-opacity:.3;transition:opacity .2s}
+.link.active{stroke-opacity:.9}
+.node-enter{animation:nodeIn .55s both}
+@keyframes nodeIn{from{opacity:0}to{opacity:1}}
+.loader{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--bg);transition:.6s}
+.loader.done{opacity:0;visibility:hidden}
+.loader-inner{text-align:center}
+.loader-title{font:800 2rem "Syne",sans-serif;background:linear-gradient(90deg,var(--red),var(--gold),var(--teal),var(--vio));background-clip:text;color:transparent}
+.loader-bar{width:180px;height:2px;background:rgba(255,255,255,.08);margin:14px auto 9px;border-radius:4px;overflow:hidden}
+.loader-bar span{display:block;width:100%;height:100%;background:linear-gradient(90deg,var(--red),var(--vio),var(--teal));transform-origin:left;animation:load 1.2s both}
+.loader-copy{font-size:.68rem;color:var(--muted)}
+@keyframes load{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.error-message{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:420px;padding:18px;border:1px solid var(--line);border-radius:12px;background:rgba(5,7,15,.9);text-align:center;color:var(--muted);font-size:.8rem;line-height:1.5}
+@media(max-width:1050px){.brand{min-width:245px}.filters{justify-content:flex-start;overflow:auto}.filter-btn{white-space:nowrap}}
+@media(max-width:760px){
+  :root{--header:58px}
+  .header{padding:0 13px;gap:9px}.brand{min-width:0;flex:1}.brand-mark{width:29px;height:29px}.brand h1{font-size:.73rem}.brand p{font-size:.59rem}
+  .filters{position:absolute;left:10px;right:10px;top:66px;justify-content:flex-start;z-index:10;pointer-events:auto}.filter-btn{background:rgba(5,7,15,.83);backdrop-filter:blur(12px)}
+  .map-meta{top:56px;left:12px}.meta-chip:last-child{display:none}.legend{display:none}.controls{right:12px;bottom:14px}.control-btn{width:42px;height:42px}.hint{bottom:18px;max-width:240px;text-align:center}
+  #panel{top:auto;left:0;right:0;bottom:0;width:100%;height:77vh;border-left:0;border-top:1px solid var(--line);border-radius:20px 20px 0 0;transform:translateY(105%)}
+  #panel.open{transform:translateY(0)}#panel-overlay{inset:0}#panel-overlay.show{background:rgba(0,0,0,.55);pointer-events:auto}.panel-handle{display:block}.panel-head{padding:13px 18px 15px}#panel-body{padding:15px 16px 36px}.card-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="loader" id="loader"><div class="loader-inner"><div class="loader-title">MPPS</div><div class="loader-bar"><span></span></div><div class="loader-copy">Organizando conceitos e conexões</div></div></div>
+<canvas id="three-bg"></canvas><div class="ambient"></div><div class="noise"></div>
+<div id="tooltip"></div>
+<div id="app">
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.9 4.9l2.8 2.8m8.6 8.6 2.8 2.8m0-14.2-2.8 2.8m-8.6 8.6-2.8 2.8"/></svg></div>
+      <div><h1>Marketing de Produtos, Preços e Serviços</h1><p>Unidades II, III e IV</p></div>
+    </div>
+    <nav class="filters" aria-label="Filtrar por unidade">
+      <button class="filter-btn active" data-filter="all" style="--unit-color:#eef2ff">Visão geral</button>
+      <button class="filter-btn" data-filter="marcas" style="--unit-color:var(--red)">II - Marcas</button>
+      <button class="filter-btn" data-filter="embalagem" style="--unit-color:var(--teal)">III - Embalagem</button>
+      <button class="filter-btn" data-filter="merchandising" style="--unit-color:var(--gold)">III - Merchandising</button>
+      <button class="filter-btn" data-filter="servicos" style="--unit-color:var(--vio)">IV - Serviços</button>
+    </nav>
+  </header>
+  <main class="workspace">
+    <div id="map-wrap">
+      <svg id="mindmap" role="img" aria-label="Mapa mental das unidades II, III e IV"></svg>
+      <div class="map-meta"><span class="meta-chip" id="visible-count">0 nós visíveis</span><span class="meta-chip">Clique em um tópico para estudar</span></div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="color:var(--red);background:var(--red)"></span>Unidade II - Gestão de Marcas</div>
+        <div class="legend-item"><span class="legend-dot" style="color:var(--teal);background:var(--teal)"></span>Unidade III - Embalagem & Rotulagem</div>
+        <div class="legend-item"><span class="legend-dot" style="color:var(--gold);background:var(--gold)"></span>Unidade III - Merchandising</div>
+        <div class="legend-item"><span class="legend-dot" style="color:var(--vio);background:var(--vio)"></span>Unidade IV - Gestão de Serviços</div>
+      </div>
+      <div class="hint">Arraste, aplique zoom e selecione os tópicos para estudar</div>
+      <div class="controls">
+        <button class="control-btn" id="zoom-in" aria-label="Aumentar zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="control-btn" id="zoom-out" aria-label="Diminuir zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button>
+        <button class="control-btn" id="zoom-reset" aria-label="Restaurar visão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/></svg></button>
+      </div>
+    </div>
+  </main>
+</div>
+<div id="panel-overlay"></div>
+<aside id="panel" aria-live="polite">
+  <div class="panel-head">
+    <div class="panel-handle"></div>
+    <button id="panel-close" aria-label="Fechar painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div id="panel-kicker"></div><h2 id="panel-title"></h2><p id="panel-summary"></p>
+  </div>
+  <div id="panel-body"></div>
+</aside>
+<script>
+const COLORS={marcas:"#ff6b6b",embalagem:"#00e5cc",merchandising:"#ffd93d",servicos:"#b77fff",root:"#eef2ff"};
+const SOURCES={
+  marcas:["Slides - Unidade II - Marcas I(1).pdf","Slides - Unidade II -Marcas II Posicionamento.pdf"],
+  embalagem:["Slides - Unidade III - Embalagem e Rotulagem - Conceitos, funções e categorias.pdf"],
+  merchandising:["UNIDADE III - MERCHADISING - Estratégias Introdução.pdf","UNIDADE III - MERCHADISING - SINALIZAÇÃO E LAYOUT.pdf"],
+  servicos:["Slides - Unidade IV- GESTÃO DE SERVIÇOS I.pdf"]
+};
+const leaf=(id,title,summary)=>({id,title,summary});
+const topic=(id,title,summary,config={})=>({id,title,summary,...config});
+const MINDMAP_DATA={id:"root",title:"Marketing de Produtos, Preços e Serviços",summary:"Síntese integrada das Unidades II, III e IV: marcas que criam significado, embalagens e ambientes que comunicam, e serviços que entregam experiências.",children:[
+{id:"marcas",title:"Gestão de Marcas",unit:"marcas",unitLabel:"Unidade II",summary:"Construção, mensuração e posicionamento de marcas capazes de gerar reconhecimento, preferência e fidelidade.",sections:[
+  {label:"Objetivos da unidade",facts:["Compreender a marca como ativo estratégico e promessa ao consumidor.","Distinguir natureza, forma, decisões e estratégias de marca.","Analisar brand equity e posicionamento competitivo."]}
+],children:[
+topic("conceito-marca","Conceito de Marca","A marca identifica, diferencia e condensa uma promessa de valor.",{quote:{text:"Nome, termo, sinal, símbolo ou design, ou uma combinação deles, destinado a identificar e diferenciar ofertas.",cite:"AMA, 2011"},cards:[
+  ["AMA, 2011","Identificação e diferenciação no mercado."],["INPI, 2019","Sinal distintivo visualmente perceptível."],["Aaker, 2015","Promessa da empresa ao consumidor."]
+],children:[
+  leaf("ama","AMA 2011","A marca identifica bens ou serviços e os diferencia dos concorrentes."),
+  leaf("inpi","INPI 2019","A marca registrada é um sinal distintivo visualmente perceptível."),
+  leaf("aaker-promessa","Aaker 2015","A marca representa a promessa de entregar benefícios funcionais, emocionais e sociais.")
+]}),
+topic("natureza-forma","Natureza & Forma","Classificações jurídicas e visuais ajudam a definir o papel e a proteção da marca.",{cards:[
+  ["Natureza","Produto, serviço, coletiva e certificação."],["Forma","Nominativa, figurativa, tridimensional e mista."]
+],children:[
+  leaf("natureza-produto","Marca de Produto","Distingue produtos de outros idênticos, semelhantes ou afins."),
+  leaf("natureza-servico","Marca de Serviço","Distingue serviços de outros idênticos, semelhantes ou afins."),
+  leaf("natureza-coletiva","Marca Coletiva","Identifica produtos ou serviços provenientes de membros de uma entidade."),
+  leaf("natureza-certificacao","Marca de Certificação","Atesta conformidade com normas ou especificações."),
+  leaf("formas-marca","Formas da Marca","Pode ser nominativa, figurativa, tridimensional ou mista.")
+]}),
+topic("dimensoes-marca","Dimensões da Marca","Quatro dimensões sustentam o valor percebido e a força competitiva da marca.",{cards:[
+  ["Reconhecimento","Visibilidade e lembrança."],["Qualidade percebida","Julgamento global de superioridade."],["Associações","Significados conectados à marca."],["Fidelidade","Resistência à troca e preferência."]
+],children:[
+  leaf("reconhecimento","Reconhecimento & Visibilidade","Capacidade de ser identificada e lembrada em situações de compra."),
+  leaf("qualidade-percebida","Qualidade Percebida","Percepção do consumidor sobre a excelência relativa da oferta."),
+  leaf("associacoes","Associações","Ideias, imagens e sentimentos vinculados à memória da marca."),
+  leaf("fidelidade","Fidelidade","Vai da ausência de lealdade ao consumidor comprometido e defensor."),
+  leaf("atitudes-aaker","5 Atitudes do Consumidor","Sem fidelidade; satisfeito habitual; satisfeito com custos de mudança; gosta da marca; fanático.")
+]}),
+topic("decisoes-marca","Decisões de Marca","Escolhas de propriedade, arquitetura de nomes e relação entre produtos e portfólio.",{cards:[
+  ["Propriedade","Fabricante, distribuidor, licenciada ou combinada."],["Nomenclatura","Individual, família abrangente, famílias separadas ou comercial + produto."]
+],children:[
+  leaf("proprietarios","Quem assina a marca","Fabricante, distribuidor, licenciado ou combinação de marcas."),
+  leaf("nomes-individuais","Nomes individuais","Cada produto recebe identidade própria, isolando riscos e posicionamentos."),
+  leaf("familia-abrangente","Família abrangente","Um mesmo nome transfere reputação para diferentes ofertas."),
+  leaf("familias-separadas","Famílias separadas","Linhas distintas recebem famílias de nomes específicas."),
+  leaf("comercial-produto","Comercial + produto","Combina o nome corporativo com a identificação da oferta.")
+]}),
+topic("estrategias-marca","Estratégias de Marca","A arquitetura de marca orienta crescimento, cobertura de segmentos e lançamento de ofertas.",{cards:[
+  ["Extensão de linha","Nova versão na categoria atual."],["Extensão de marca","Marca atual entra em nova categoria."],["Multimarcas","Várias marcas na mesma categoria."],["Novas marcas","Nova identidade para nova oferta."],["Nomes combinados","Forças de duas marcas reunidas."],["Marca como sinônimo","Notoriedade pode transformar marca em referência da categoria."]
+],children:[
+  leaf("extensao-linha","Extensões de Linha","Novos sabores, tamanhos, formas ou atributos sob a marca atual."),
+  leaf("extensao-marca","Extensões de Marca","Uso da marca existente em uma categoria diferente."),
+  leaf("multimarcas","Multimarcas","Criação de marcas diferentes para disputar a mesma categoria."),
+  leaf("novas-marcas","Novas Marcas","Criação de uma identidade sem vínculo direto com marcas atuais."),
+  leaf("nomes-combinados","Nomes Combinados","Aliança ou composição entre marcas para ampliar valor."),
+  leaf("sinonimos-categoria","Marcas que viraram sinônimos","Bom Bril, Gillette, Xerox, Maizena, Durex, Band-Aid, Bombril e Leite Moça.")
+]}),
+topic("brand-equity","Brand Equity","Valor adicional atribuído a produtos e serviços por causa da marca.",{quote:{text:"Brand equity traduz como o conhecimento da marca altera a resposta do consumidor à oferta.",cite:"Síntese dos modelos de avaliação de marca"},steps:["Diferenciação","Relevância","Estima","Conhecimento"],cards:[
+  ["BrandAsset Valuator","Diferenciação, relevância, estima e conhecimento."],["BRANDZ","Presença, relevância, desempenho, vantagem e vínculo."],["Ressonância de Marca","Proeminência; desempenho e imagem; julgamentos e sensações; ressonância."],["Elementos construtores","Memorável, significativo, cativante, transferível, adaptável e protegido."]
+],children:[
+  leaf("bav","BrandAsset Valuator","Modelo da Young & Rubicam: diferenciação, relevância, estima e conhecimento."),
+  leaf("brandz","BRANDZ","Pirâmide: presença, relevância, desempenho, vantagem e vínculo."),
+  leaf("ressonancia","Ressonância de Marca","Pirâmide de Keller que culmina em relacionamento intenso e ativo."),
+  leaf("elementos-construtores","Elementos Construtores","Devem ser fáceis de memorizar, significativos, cativantes, transferíveis, adaptáveis e protegidos.")
+]}),
+topic("posicionamento","Posicionamento de Marca","Define o lugar desejado da marca na mente do público em relação aos concorrentes.",{cards:[
+  ["Estrutura de referência","Mercado-alvo e concorrência relevante."],["Pontos de Diferença","Associações desejáveis, entregáveis e diferenciáveis."],["Pontos de Paridade","Associações necessárias à categoria ou à competição."],["Mantra de Marca","Deve comunicar, simplificar e inspirar."]
+],children:[
+  leaf("estrutura-referencia","Estrutura de Referência","Delimita mercado-alvo e conjunto competitivo relevante."),
+  leaf("pontos-diferenca","Pontos de Diferença","Benefícios que o consumidor associa fortemente à marca e não encontra equivalentes."),
+  leaf("pontos-paridade","Pontos de Paridade","Atributos necessários para pertencer à categoria ou neutralizar vantagens concorrentes."),
+  leaf("mantra","Mantra de Marca","Frase curta que orienta a essência interna da marca: comunique, simplifique e inspire.")
+]})
+]},
+{id:"embalagem",title:"Embalagem & Rotulagem",unit:"embalagem",unitLabel:"Unidade III",summary:"A embalagem protege, facilita, diferencia e comunica; o rótulo transforma informação em orientação e persuasão.",children:[
+topic("conceito-embalagem","Conceito & Perspectiva","O recipiente é simultaneamente solução técnica e ferramenta mercadológica.",{quote:{text:"A embalagem envolve as atividades de projeto e produção do recipiente ou invólucro de um produto.",cite:"Kotler, 2005"},cards:[
+  ["Kotler, 2005","Projeto e produção do recipiente."],["McCarthy & Perreault, 1997","Promoção e proteção do produto."],["Perspectiva Passiva","Ênfase técnica na proteção."],["Perspectiva Ativa","Ênfase mercadológica na promoção."]
+],children:[
+  leaf("kotler-embalagem","Kotler 2005","Conjunto de atividades de projeto e produção do recipiente ou invólucro."),
+  leaf("mccarthy-embalagem","McCarthy & Perreault 1997","A embalagem envolve promover e proteger o produto."),
+  leaf("passiva","Perspectiva Passiva","Trata a embalagem prioritariamente como proteção técnica e logística."),
+  leaf("ativa","Perspectiva Ativa","Trata a embalagem como mídia, diferenciação e estímulo à compra.")
+]}),
+topic("funcoes-embalagem","Funções da Embalagem","Uma embalagem eficaz resolve necessidades físicas e mercadológicas.",{cards:[
+  ["Proteção","Preserva o produto e reduz perdas."],["Promoção","Comunica e estimula a compra."],["Conveniência","Facilita transporte, uso e armazenamento."],["Diferenciação","Destaca a oferta no ponto de venda."]
+],children:[
+  leaf("protecao","Proteção","Preserva integridade, qualidade e segurança durante distribuição e uso."),
+  leaf("promocao","Promoção","Atua como mídia no ponto de venda e reforça posicionamento."),
+  leaf("conveniencia","Conveniência","Facilita manuseio, transporte, abertura, consumo e armazenamento."),
+  leaf("diferenciacao","Diferenciação","Cria reconhecimento visual e distinção frente aos concorrentes.")
+]}),
+topic("desenvolvimento-embalagem","Dimensões de Desenvolvimento","O projeto integra expressão visual, desempenho funcional e escolha de materiais.",{cards:[
+  ["Visual","Formato, cor e tipografia."],["Funcional","Manuseabilidade e experiência de uso."],["Composição","Materiais e estrutura."]
+],children:[
+  leaf("visual","Dimensão Visual","Formato, cor e tipografia constroem reconhecimento e comunicação."),
+  leaf("funcional","Dimensão Funcional","Manuseabilidade, abertura, fechamento e adequação ao uso."),
+  leaf("composicao","Dimensão de Composição","Material deve equilibrar proteção, custo e impacto ambiental.")
+]}),
+topic("rotulagem","Rotulagem","Do rótulo simples ao projeto gráfico completo, a informação deve ser útil, legível e coerente.",{cards:[
+  ["Expressão","Tipo de letra, ilustrações, tamanho, cores e luminosidade."],["Informação","Composição, nutrição, uso, alertas e identificação."],["Critério central","Legibilidade adequada ao contexto de compra e uso."]
+],children:[
+  leaf("rotulo-simples-completo","Do Simples ao Completo","Pode variar de uma etiqueta básica a um projeto gráfico integrado."),
+  leaf("tipografia-ilustracao","Tipografia & Ilustrações","Devem reforçar identidade e facilitar compreensão."),
+  leaf("legibilidade","Legibilidade","Tamanho, contraste, organização e luminosidade orientam a leitura."),
+  leaf("informacoes-rotulo","Informações do Rótulo","Incluem dados nutricionais, composição, modo de uso e exigências legais.")
+]}),
+topic("crescimento-embalagem","Embalagem como Marketing","Mudanças no varejo e no consumidor ampliaram a função estratégica da embalagem.",{cards:[
+  ["Autosserviço","A embalagem assume parte do papel do vendedor."],["Poder aquisitivo e afluência","Consumidores aceitam pagar por conveniência e apresentação."],["Responsabilidade ambiental","Materiais e descarte influenciam escolha e reputação."],["Inovação","Novas soluções criam diferenciação e valor."]
+],children:[
+  leaf("autosservico","Autosserviço","Sem vendedor, a embalagem precisa identificar, informar e persuadir."),
+  leaf("poder-aquisitivo","Poder Aquisitivo & Afluência","Maior renda amplia expectativas sobre conveniência, estética e qualidade."),
+  leaf("ambiental","Responsabilidade Ambiental","Redução, reúso e reciclagem afetam projeto e percepção."),
+  leaf("inovacao-embalagem","Oportunidade de Inovação","Formatos, materiais e funcionalidades podem criar vantagem competitiva.")
+]})
+]},
+{id:"merchandising",title:"Merchandising",unit:"merchandising",unitLabel:"Unidade III",summary:"Técnicas, materiais e decisões de ambiente que influenciam a compra no ponto de venda.",children:[
+topic("conceito-merch","Conceito & Importância","O merchandising controla o último estágio da comunicação mercadológica: a hora da compra.",{quote:{text:"Qualquer técnica, ação ou material promocional usado no ponto de venda para motivar e influenciar decisões de compra.",cite:"Grey Donna, 1999"},metrics:[
+  ["80%","das decisões","ocorrem no PDV"],["Hora","da compra","último estágio"],["PDV","como mídia","influência direta"]
+],children:[
+  leaf("grey-donna","Grey Donna 1999","Merchandising reúne técnicas, ações e materiais promocionais aplicados no ponto de venda."),
+  leaf("decisoes-pdv","80% das decisões","Grande parte das escolhas é definida ou alterada no ponto de venda."),
+  leaf("hora-compra","A Hora da Compra","O ambiente controla o estágio final da comunicação e da conversão.")
+]}),
+topic("merch-visual","Merchandising Visual","A apresentação visual conecta experiência de compra e resultados financeiros.",{cards:[
+  ["Ponto de vista estético","Imagem forte, compra facilitada, desejo de comprar mais, fidelização e apoio à equipe."],["Ponto de vista técnico","Produtividade, giro de estoque, vendas por metro quadrado, margem e menos remarcações."]
+],children:[
+  leaf("estetico","Ponto de Vista Estético","Cria imagem forte, facilita escolhas, estimula compras e favorece fidelização."),
+  leaf("tecnico","Ponto de Vista Técnico","Busca produtividade, rotatividade, vendas por área, margem e menos reduções de preço.")
+]}),
+topic("estrategias-negocio","Estratégias de Negócio","O varejista precisa construir uma essência competitiva reconhecível pelo cliente.",{cards:[
+  ["Essência Competitiva","Diferencial exclusivo que sustenta preferência."],["Superioridade em Preço","Preços baixos, pagamentos e descontos."],["Superioridade na Especialização","Conveniência, produtos, região ou segmento."],["Superioridade na Diferenciação","Emoção e conceito."]
+],children:[
+  leaf("essencia","Essência Competitiva","Diferencial exclusivo que torna a loja preferível aos olhos do cliente."),
+  leaf("superioridade-preco","Superioridade em Preço","Compete por preços baixos, condições e descontos."),
+  leaf("superioridade-especializacao","Superioridade na Especialização","Compete por foco em conveniência, produtos, região ou segmentação."),
+  leaf("superioridade-diferenciacao","Superioridade na Diferenciação","Compete por emoção, conceito e experiência singular.")
+]}),
+topic("sinalizacao","Sinalização","Uma hierarquia visual consistente orienta, informa, promove e reforça a imagem da loja.",{metrics:[
+  ["+112%","prateleira","com preço"],["+229%","preço","e informações"],["+540%","exposição forte","preço e vantagens"]
+],cards:[
+  ["Nível 1 - acima de 3 m","Direcional e sondagem."],["Nível 2 - entre 2 e 3 m","Subcategorias e promoções."],["Nível 3 - abaixo de 1,80 m","Preços e características."],["Cores associadas","Amarelo: desconto; vermelho: venda; verde: meio ambiente."]
+],children:[
+  leaf("hierarquia-sinalizacao","Hierarquia de Sinalização","Três níveis organizam orientação, categoria, promoção, preço e características."),
+  leaf("reforco-imagem","Reforço da Imagem","Consistência visual, materiais, cores, ícones e linguagem devem formar um sistema."),
+  leaf("cores-sinalizacao","Associações de Cores","Amarelo comunica desconto; vermelho, venda; verde, meio ambiente."),
+  leaf("impacto-sinalizacao","Impacto da Sinalização","A combinação de exposição, preço, informação e vantagens pode elevar vendas em até +540%."),
+  leaf("placas-afugentam","Placas que Afugentam","Mensagens autoritárias e presunçosas prejudicam a experiência.")
+]}),
+topic("layout","Layout do Ponto de Venda","O posicionamento de estruturas cria fluxos, distribui atenção e transforma espaço em desempenho.",{cards:[
+  ["Zona de Descompressão","Transição na entrada; cliente se adapta ao ambiente."],["Tendência à direita","80% das pessoas tendem a virar à direita."],["Corredores","Grade, fluxo livre e pista de corrida."],["Espaços nobres","Áreas quentes e pontos de alto tráfego ou visibilidade."],["Impacto","Paredes, cruzamentos e focos visuais."],["Áreas de caixa","Ponto final da jornada e oportunidade de contato."],["Iluminação","Geral, periférica e de destaque."],["Mapeamento","E, PI, EV, ZI, FV, P e AC."]
+],children:[
+  leaf("descompressao","Zona de Descompressão","Espaço de transição logo após a entrada, onde o cliente se adapta."),
+  leaf("virar-direita","Tendência de Virar à Direita","Cerca de 80% tende à direita por lateralidade, trânsito e leitura ocidental."),
+  leaf("corredores","Estruturas de Corredores","Grade para investigação; Fluxo Livre para passeio; Pista de Corrida combina perfis."),
+  leaf("espacos-nobres","Espaços Nobres","Áreas quentes e pontos nobres concentram tráfego e visibilidade."),
+  leaf("paredes-zonas","Paredes & Zonas de Impacto","Paredes direita e de fundo, além de cruzamentos, recebem alto contato."),
+  leaf("focos-visuais","Focos Visuais","Placas, gráficos e iluminação valorizam áreas apagadas."),
+  leaf("areas-caixa","Áreas de Caixa","Encerram a jornada; posição varia conforme autosserviço ou atendimento especializado."),
+  leaf("iluminacao","Iluminação","Combina luz geral, periférica e de destaque para orientar e valorizar.")
+]})
+]},
+{id:"servicos",title:"Gestão de Serviços",unit:"servicos",unitLabel:"Unidade IV",summary:"Serviços exigem gestão da experiência, da qualidade e da capacidade porque são intangíveis, simultâneos, variáveis e perecíveis.",children:[
+topic("conceito-servicos","Conceito & Posicionamento","Serviço é desempenho essencialmente intangível que não resulta na propriedade de algo.",{quote:{text:"Ato ou desempenho essencialmente intangível que não resulta na propriedade de nada.",cite:"McCarthy & Perreault, 1997"},facts:["Empresas recorrem à diferenciação em serviços para obter maior valor percebido e lucratividade.","O serviço pode acompanhar um bem ou constituir a própria oferta principal."],children:[
+  leaf("definicao-servico","Definição de Serviço","Ato ou desempenho intangível, sem transferência de propriedade."),
+  leaf("diferenciacao-servicos","Diferenciação em Serviços","Serviços agregados podem sustentar posicionamento e lucratividade.")
+]}),
+topic("dimensoes-servicos","4 Dimensões dos Serviços","As características dos serviços criam desafios específicos de marketing e operação.",{cards:[
+  ["Intangibilidade","Não pode ser visto, provado, sentido ou ouvido antes da compra."],["Inseparabilidade","Produção e consumo ocorrem simultaneamente."],["Variabilidade","Qualidade depende de quem, onde e quando presta."],["Perecibilidade","Capacidade não usada não pode ser estocada."]
+],children:[
+  leaf("intangibilidade","Intangibilidade","Tangibilizar por instalações, pessoas, equipamentos, símbolos e preços."),
+  leaf("inseparabilidade","Inseparabilidade","Prestador e cliente participam da produção e do consumo."),
+  leaf("variabilidade","Variabilidade","Controlar por contratação, treinamento, padronização e acompanhamento."),
+  leaf("perecibilidade","Perecibilidade","Equilibrar demanda e capacidade com preços, reservas, part-time e autosserviço.")
+]}),
+topic("categorias-servicos","Categorias de Serviços","As ofertas formam um contínuo entre bens totalmente tangíveis e serviços puros.",{steps:["Bem tangível","Bem + serviço","Híbrido","Serviço + bens","Serviço puro"],cards:[
+  ["Bens puramente tangíveis","Shampoo e sal."],["Bens associados a serviços","Celular e soluções de mobilidade."],["Híbridos","Refeição em lanchonete."],["Serviço principal + secundários","Educação."],["Serviço puro","Consulta médica, coaching e personal trainer."]
+],children:[
+  leaf("bem-puro","Bens Puramente Tangíveis","Oferta material com pouca ou nenhuma prestação associada."),
+  leaf("bem-servico","Bens Tangíveis + Serviços","O bem é ampliado por serviços de suporte ou uso."),
+  leaf("hibridos","Híbridos","Bens e serviços possuem importância semelhante na experiência."),
+  leaf("servico-bens-secundarios","Serviço Principal + Secundários","O serviço central depende de bens e serviços complementares."),
+  leaf("servico-puro","Serviço Puro","A oferta é predominantemente desempenho e experiência.")
+]}),
+topic("abrangencia-servicos","Abrangência dos Serviços","Serviços estão presentes em setores públicos, sociais, empresariais e profissionais.",{cards:[
+  ["Setor governamental","Hospitais, tribunais, correios, escolas e bombeiros."],["Sem fins lucrativos","Museus, igrejas, universidades e fundações."],["Setor empresarial","Companhias aéreas, bancos, hotéis, seguradoras e imobiliárias."],["Profissionais","Administradores, contadores, professores e saúde."]
+],children:[
+  leaf("governamental","Setor Governamental","Serviços públicos atendem necessidades coletivas e direitos."),
+  leaf("sem-fins","Organizações sem Fins Lucrativos","Entidades orientadas por missão também gerenciam serviços e experiências."),
+  leaf("empresarial","Setor Empresarial","Serviços competem por valor, eficiência, confiança e relacionamento."),
+  leaf("profissionais","Profissionais de Serviços","Conhecimento e interação pessoal compõem a entrega.")
+]}),
+topic("avaliacao-servicos","Avaliação de Produtos e Serviços","Quanto mais intangível a oferta, mais difícil avaliar sua qualidade antes e até depois do consumo.",{steps:["Pesquisáveis","Experimentáveis","Credenciáveis"],cards:[
+  ["Qualidades pesquisáveis","Avaliadas antes da compra; predominam em bens."],["Qualidades experimentáveis","Avaliadas durante ou após a experiência."],["Qualidades credenciáveis","Difíceis de avaliar mesmo após o consumo; predominam em serviços."]
+],children:[
+  leaf("pesquisaveis","Qualidades Pesquisáveis","Preço, cor, forma e outros atributos observáveis antes da compra."),
+  leaf("experimentaveis","Qualidades Experimentáveis","Conforto, sabor e atendimento avaliados após experimentar."),
+  leaf("credenciaveis","Qualidades credenciáveis","Competência técnica e resultados podem permanecer difíceis de julgar.")
+]}),
+topic("desafios-servicos","Desafios em Serviços","A gestão deve reduzir incerteza, produzir qualidade consistente e equilibrar demanda e capacidade.",{cards:[
+  ["Tangibilizar","Tornar visíveis evidências de qualidade."],["Produtividade","Entregar mais valor com recursos disponíveis."],["Padronizar","Reduzir variação sem eliminar personalização útil."],["Oferta x demanda","Ajustar capacidade às oscilações."]
+],children:[
+  leaf("tangibilizar","Tornar Tangível o Intangível","Usar evidências físicas, marca, processos e comunicação para reduzir risco."),
+  leaf("produtividade","Aumentar Produtividade","Melhorar processos, tecnologia e participação do cliente."),
+  leaf("padronizar","Padronizar Qualidade","Definir padrões, treinar, acompanhar e recuperar falhas."),
+  leaf("oferta-demanda","Adequar Oferta à Demanda","Usar reservas, preços, capacidade flexível e serviços complementares.")
+]})
+]},
+]};
+
+const ICONS={
+  root:["M4 6h6v6H4z","M14 4h6v6h-6z","M14 14h6v6h-6z","M4 16h6v4H4z","M10 9h4M7 12v4m10-6v4m-7 4h4"],
+  marcas:["M4 4h10l6 6-10 10-6-6z","M8 8h.01"],
+  embalagem:["M4 7l8-4 8 4v10l-8 4-8-4z","M4 7l8 4 8-4M12 11v10"],
+  merchandising:["M4 4h16v5H4z","M6 9v11m12-11v11M9 13h6m-6 4h6"],
+  servicos:["M12 21a9 9 0 1 0-9-9","M3 12h4l2-4 4 8 2-4h6"]
+};
+let ALL_NODES=[],ALL_LINKS=[],nodeById=new Map(),activeFilter="all",simulation,svg,viewport,nodeLayer,linkLayer,zoomBehavior,baseTransform;
+let width=0,height=0;
+function flattenTree(){
+  ALL_NODES=[];ALL_LINKS=[];nodeById.clear();
+  function walk(node,parent=null,depth=0,unit=null){
+    node.parentId=parent?.id||null;node.depth=depth;node.unit=node.unit||unit||"root";node.color=COLORS[node.unit]||COLORS.root;
+    ALL_NODES.push(node);nodeById.set(node.id,node);
+    if(parent)ALL_LINKS.push({source:parent.id,target:node.id,unit:node.unit});
+    if(depth<2)(node.children||[]).forEach(child=>walk(child,node,depth+1,node.unit));
+  }
+  walk(MINDMAP_DATA);
+}
+function nodeVisible(node){
+  if(activeFilter!=="all"&&node.id!=="root"&&node.unit!==activeFilter)return false;
+  return true;
+}
+function getVisibleGraph(){
+  const nodes=ALL_NODES.filter(nodeVisible);
+  const ids=new Set(nodes.map(n=>n.id));
+  return {nodes,links:ALL_LINKS.filter(l=>ids.has(typeof l.source==="object"?l.source.id:l.source)&&ids.has(typeof l.target==="object"?l.target.id:l.target))};
+}
+function nodeRadius(d){return d.depth===0?62:d.depth===1?46:d.depth===2?11:7}
+function topicWidth(d){return Math.max(112,Math.min(176,d.title.length*6.2+28))}
+function assignTargets(nodes){
+  const cx=width/2,cy=height/2;
+  const units=MINDMAP_DATA.children;
+  const angles=[Math.PI*1.2,Math.PI*1.8,Math.PI*.2,Math.PI*.8];
+  const rx=Math.min(width*.32,370),ry=Math.min(height*.34,260);
+  nodes.forEach(d=>{
+    if(d.depth===0){d.fx=cx;d.fy=cy;d.tx=cx;d.ty=cy;return}
+    const ui=units.findIndex(u=>u.id===d.unit),a=angles[ui];
+    const ux=cx+Math.cos(a)*rx,uy=cy+Math.sin(a)*ry;
+    if(d.depth===1){d.tx=ux;d.ty=uy}
+    if(d.depth===2){
+      const parent=nodeById.get(d.parentId);const siblings=parent.children||[];const i=siblings.findIndex(x=>x.id===d.id);
+      const spread=(i-(siblings.length-1)/2)*.19;const r=170+(i%2)*18;
+      d.tx=ux+Math.cos(a+spread)*r;d.ty=uy+Math.sin(a+spread)*r;
+    }
+    if(!Number.isFinite(d.x)){d.x=d.tx+(Math.random()-.5)*50;d.y=d.ty+(Math.random()-.5)*50}
+  });
+}
+function iconMarkup(id,color){
+  const paths=(ICONS[id]||ICONS.root).map(p=>`<path d="${p}"/>`).join("");
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+function initMap(){
+  if(!window.d3){document.getElementById("map-wrap").insertAdjacentHTML("beforeend",'<div class="error-message">Não foi possível carregar a biblioteca do mapa. Verifique a conexão e recarregue a página.</div>');return}
+  const wrap=document.getElementById("map-wrap");width=wrap.clientWidth;height=wrap.clientHeight;
+  svg=d3.select("#mindmap").attr("viewBox",`0 0 ${width} ${height}`);
+  const defs=svg.append("defs");
+  Object.entries(COLORS).forEach(([key,color])=>{
+    const f=defs.append("filter").attr("id",`glow-${key}`).attr("x","-100%").attr("y","-100%").attr("width","300%").attr("height","300%");
+    f.append("feGaussianBlur").attr("stdDeviation","5").attr("result","blur");const m=f.append("feMerge");m.append("feMergeNode").attr("in","blur");m.append("feMergeNode").attr("in","SourceGraphic");
+  });
+  viewport=svg.append("g");linkLayer=viewport.append("g");nodeLayer=viewport.append("g");
+  zoomBehavior=d3.zoom().touchable(()=>true).scaleExtent([.22,2.8]).on("zoom",e=>viewport.attr("transform",e.transform));
+  svg.call(zoomBehavior).on("dblclick.zoom",null);
+  baseTransform=initialTransform();
+  svg.call(zoomBehavior.transform,baseTransform);
+  renderGraph();
+}
+function renderGraph(){
+  if(!svg)return;
+  const graph=getVisibleGraph();assignTargets(graph.nodes);
+  document.getElementById("visible-count").textContent=`${graph.nodes.length} nós visíveis`;
+  simulation?.stop();
+  simulation=d3.forceSimulation(graph.nodes)
+    .force("link",d3.forceLink(graph.links).id(d=>d.id).distance(d=>d.target.depth===2?135:180).strength(.45))
+    .force("charge",d3.forceManyBody().strength(d=>d.depth===0?-900:d.depth===1?-520:d.depth===2?-190:-70))
+    .force("x",d3.forceX(d=>d.tx).strength(d=>d.depth<2?.24:.11))
+    .force("y",d3.forceY(d=>d.ty).strength(d=>d.depth<2?.24:.11))
+    .force("collide",d3.forceCollide(d=>d.depth===2?topicWidth(d)/2+9:nodeRadius(d)+12).iterations(2));
+  const links=linkLayer.selectAll("path").data(graph.links,d=>`${d.source.id||d.source}-${d.target.id||d.target}`);
+  links.exit().transition().duration(200).attr("opacity",0).remove();
+  const linksEnter=links.enter().append("path").attr("class","link").attr("stroke",d=>COLORS[d.unit]).attr("stroke-width",d=>d.target.depth===1?1.8:1);
+  const linkMerge=linksEnter.merge(links);
+  const nodes=nodeLayer.selectAll("g.node").data(graph.nodes,d=>d.id);
+  nodes.exit().transition().duration(220).attr("opacity",0).remove();
+  const enter=nodes.enter().append("g").attr("class","node node-enter").attr("tabindex",0).attr("role","button")
+    .on("click",(e,d)=>handleNodeClick(d)).on("keydown",(e,d)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();handleNodeClick(d)}})
+    .on("mouseenter",(e,d)=>highlightNode(d,e)).on("mousemove",moveTooltip).on("mouseleave",clearHighlight);
+  if(matchMedia("(pointer:fine)").matches)enter.call(d3.drag().on("start",dragStarted).on("drag",dragged).on("end",dragEnded));
+  enter.each(function(d){
+    const g=d3.select(this);
+    if(d.depth===0||d.depth===1){
+      const r=nodeRadius(d);g.append("circle").attr("class","halo").attr("r",r+9).attr("fill","none").attr("stroke",d.color).attr("filter",`url(#glow-${d.unit})`);
+      g.append("circle").attr("class","node-shape").attr("r",r).attr("fill",d.depth===0?"rgba(238,242,255,.055)":`${d.color}16`).attr("stroke",d.color).attr("stroke-width",d.depth===0?1.5:1.3);
+      const icon=g.append("g").attr("transform",d.depth===0?"translate(-12,-29)":"translate(-10,-26) scale(.84)");
+      (ICONS[d.id]||ICONS.root).forEach(p=>icon.append("path").attr("d",p).attr("fill","none").attr("stroke",d.color).attr("stroke-width","1.7").attr("stroke-linecap","round").attr("stroke-linejoin","round"));
+      const lines=d.title.length>25?splitTitle(d.title):[d.title];lines.forEach((line,i)=>g.append("text").text(line).attr("text-anchor","middle").attr("y",4+i*12-(lines.length-1)*6).attr("fill",d.color).attr("font-family","Syne").attr("font-weight","700").attr("font-size",d.depth===0?9.2:8.5));
+      if(d.depth===1)g.append("text").text(d.unitLabel).attr("text-anchor","middle").attr("y",28).attr("fill","#8992aa").attr("font-family","JetBrains Mono").attr("font-size","5.8");
+      if(d.depth===0)g.append("text").text("Unidades II, III e IV").attr("text-anchor","middle").attr("y",30).attr("fill","#8992aa").attr("font-family","JetBrains Mono").attr("font-size","5.8");
+    }else if(d.depth===2){
+      const w=topicWidth(d);g.append("rect").attr("class","node-shape").attr("x",-w/2).attr("y",-15).attr("width",w).attr("height",30).attr("rx",15).attr("fill","rgba(8,12,22,.9)").attr("stroke",d.color).attr("stroke-opacity",".55");
+      g.append("circle").attr("cx",-w/2+13).attr("r",3.5).attr("fill",d.color);
+      g.append("text").text(shorten(d.title,24)).attr("x",-w/2+23).attr("y",3).attr("fill","#e2e7f5").attr("font-size","7.8").attr("font-weight","600");
+    }
+  });
+  const nodeMerge=enter.merge(nodes);
+  nodeMerge.attr("aria-label",d=>d.title);
+  simulation.on("tick",()=>{
+    linkMerge.attr("d",d=>`M${d.source.x},${d.source.y} Q${(d.source.x+d.target.x)/2+(d.target.y-d.source.y)*.08},${(d.source.y+d.target.y)/2-(d.target.x-d.source.x)*.08} ${d.target.x},${d.target.y}`);
+    nodeMerge.attr("transform",d=>`translate(${d.x},${d.y})`);
+  });
+}
+function splitTitle(title){const words=title.split(" "),mid=Math.ceil(words.length/2);return [words.slice(0,mid).join(" "),words.slice(mid).join(" ")].filter(Boolean)}
+function shorten(s,n){return s.length>n?s.slice(0,n-1)+"…":s}
+function handleNodeClick(d){
+  openPanel(d.id);
+}
+function highlightNode(d,event){
+  const connected=new Set([d.id]);
+  ALL_LINKS.forEach(l=>{const s=l.source.id||l.source,t=l.target.id||l.target;if(s===d.id)connected.add(t);if(t===d.id)connected.add(s)});
+  nodeLayer.selectAll(".node").classed("dimmed",n=>!connected.has(n.id));
+  linkLayer.selectAll(".link").classed("active",l=>(l.source.id||l.source)===d.id||(l.target.id||l.target)===d.id).classed("dimmed",l=>(l.source.id||l.source)!==d.id&&(l.target.id||l.target)!==d.id);
+  const tip=document.getElementById("tooltip");tip.style.setProperty("--tip-color",d.color);tip.innerHTML=`<strong>${d.title}</strong>Clique para abrir os detalhes.`;tip.style.opacity="1";moveTooltip(event);
+}
+function moveTooltip(e){const tip=document.getElementById("tooltip");tip.style.left=`${Math.min(innerWidth-245,e.clientX+14)}px`;tip.style.top=`${Math.min(innerHeight-80,e.clientY+14)}px`}
+function clearHighlight(){nodeLayer.selectAll(".node").classed("dimmed",false);linkLayer.selectAll(".link").classed("active",false).classed("dimmed",false);document.getElementById("tooltip").style.opacity="0"}
+function dragStarted(e,d){if(!e.active)simulation.alphaTarget(.25).restart();if(d.depth!==0){d.fx=d.x;d.fy=d.y}}
+function dragged(e,d){if(d.depth!==0){d.fx=e.x;d.fy=e.y}}
+function dragEnded(e,d){if(!e.active)simulation.alphaTarget(0);if(d.depth!==0){d.fx=null;d.fy=null}}
+function applyUnitFilter(unit){
+  activeFilter=unit;document.querySelectorAll(".filter-btn").forEach(b=>b.classList.toggle("active",b.dataset.filter===unit));renderGraph();resetZoom();
+}
+function openPanel(id){
+  const d=nodeById.get(id);if(!d)return;
+  const panel=document.getElementById("panel"),body=document.getElementById("panel-body");
+  panel.style.setProperty("--panel-color",d.color);document.getElementById("panel-kicker").textContent=d.depth===0?"Visão integrada":`${d.unitLabel||nodeById.get(d.unit)?.unitLabel||"Conteúdo"} - ${d.depth===1?"Unidade":d.depth===2?"Tópico central":"Conceito associado"}`;
+  document.getElementById("panel-title").textContent=d.title;document.getElementById("panel-summary").textContent=d.summary||"Conceito relacionado ao tópico selecionado.";
+  let html="";
+  if(d.quote)html+=`<section class="panel-section"><div class="panel-label">Definição-chave</div><blockquote class="quote">${d.quote.text}<cite>${d.quote.cite}</cite></blockquote></section>`;
+  if(d.metrics)html+=`<section class="panel-section"><div class="panel-label">Indicadores em destaque</div><div class="metric-grid">${d.metrics.map(m=>`<div class="metric"><strong>${m[0]}</strong><span>${m.slice(1).join(" ")}</span></div>`).join("")}</div></section>`;
+  if(d.steps)html+=`<section class="panel-section"><div class="panel-label">Sequência do modelo</div><div class="steps">${d.steps.map(x=>`<div class="step">${x}</div>`).join("")}</div></section>`;
+  if(d.cards)html+=`<section class="panel-section"><div class="panel-label">Componentes</div><div class="card-grid">${d.cards.map(c=>`<div class="study-card"><strong>${c[0]}</strong><span>${c[1]}</span></div>`).join("")}</div></section>`;
+  (d.sections||[]).forEach(s=>html+=`<section class="panel-section"><div class="panel-label">${s.label}</div><ul class="fact-list">${s.facts.map(f=>`<li>${f}</li>`).join("")}</ul></section>`);
+  if(d.children?.length)html+=`<section class="panel-section"><div class="panel-label">Conexões deste tópico</div><ul class="fact-list">${d.children.map(c=>`<li><strong>${c.title}:</strong> ${c.summary}</li>`).join("")}</ul></section>`;
+  const sourceUnit=d.unit==="root"?"marcas":d.unit;const sources=d.id==="root"?Object.values(SOURCES).flat():SOURCES[sourceUnit]||[];
+  html+=`<section class="panel-section"><div class="panel-label">Materiais-base</div><div class="source-list">${sources.map(s=>`<span class="source-tag">${s}</span>`).join("")}</div></section>`;
+  body.innerHTML=html;body.scrollTop=0;panel.classList.add("open");if(innerWidth<=760)document.getElementById("panel-overlay").classList.add("show");
+}
+function closePanel(){document.getElementById("panel").classList.remove("open");document.getElementById("panel-overlay").classList.remove("show")}
+function resetZoom(){if(svg)svg.transition().duration(450).call(zoomBehavior.transform,baseTransform)}
+function initialTransform(){const scale=width<=760?.5:.82;return d3.zoomIdentity.translate(width*(1-scale)/2,height*(1-scale)/2).scale(scale)}
+function initThree(){
+  const canvas=document.getElementById("three-bg");if(!window.THREE){canvas.classList.add("ready");return}
+  const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:false});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);camera.position.z=150;
+  const count=innerWidth<760?420:850,positions=new Float32Array(count*3),colors=new Float32Array(count*3),palette=[new THREE.Color(COLORS.marcas),new THREE.Color(COLORS.embalagem),new THREE.Color(COLORS.merchandising),new THREE.Color(COLORS.servicos)];
+  for(let i=0;i<count;i++){positions[i*3]=(Math.random()-.5)*340;positions[i*3+1]=(Math.random()-.5)*220;positions[i*3+2]=(Math.random()-.5)*260;const c=palette[i%4];colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b}
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
+  const points=new THREE.Points(geometry,new THREE.PointsMaterial({size:.65,transparent:true,opacity:.45,vertexColors:true,sizeAttenuation:true}));scene.add(points);
+  let mx=0,my=0;window.addEventListener("pointermove",e=>{mx=(e.clientX/innerWidth-.5)*.18;my=(e.clientY/innerHeight-.5)*.12},{passive:true});
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function frame(){points.rotation.y+=(mx-points.rotation.y)*.008;points.rotation.x+=(-my-points.rotation.x)*.008;if(!reduce)points.rotation.z+=.00012;renderer.render(scene,camera);requestAnimationFrame(frame)}frame();canvas.classList.add("ready");
+  window.addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+}
+document.querySelectorAll(".filter-btn").forEach(b=>b.addEventListener("click",()=>applyUnitFilter(b.dataset.filter)));
+document.getElementById("panel-close").addEventListener("click",closePanel);document.getElementById("panel-overlay").addEventListener("click",closePanel);
+document.getElementById("zoom-in").addEventListener("click",()=>svg.transition().duration(250).call(zoomBehavior.scaleBy,1.3));
+document.getElementById("zoom-out").addEventListener("click",()=>svg.transition().duration(250).call(zoomBehavior.scaleBy,.76));
+document.getElementById("zoom-reset").addEventListener("click",resetZoom);
+window.addEventListener("resize",()=>{const wrap=document.getElementById("map-wrap");width=wrap.clientWidth;height=wrap.clientHeight;if(svg){baseTransform=initialTransform();svg.attr("viewBox",`0 0 ${width} ${height}`);renderGraph()}});
+window.addEventListener("load",()=>{flattenTree();initThree();initMap();const deepLink=decodeURIComponent(location.hash.slice(1));if(nodeById.has(deepLink))setTimeout(()=>openPanel(deepLink),850);setTimeout(()=>document.getElementById("loader").classList.add("done"),800)});
+</script>
+</body>
+</html>
